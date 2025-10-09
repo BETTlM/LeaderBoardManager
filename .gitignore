@@ -1,8 +1,17 @@
-HELP.md
+# Compiled class files and packaged jars
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+
+# Maven wrapper downloaded binaries
+.mvn/
+
+# Log files
+*.log
+
+# macOS specific files
+.DS_Store
+
+# Generated documentation
+HELP.md
 
 ### STS ###
 .apt_generated
@@ -14,7 +23,7 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
