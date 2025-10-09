@@ -1,4 +1,3 @@
-// src/main/java/com/example/skiplistapp/SkipListService.java
 package com.example.skiplist_app;
 
 import com.example.skiplist_app.dto.VisualizationData;
@@ -30,40 +29,36 @@ public class SkipListService {
     public void simulateUpdates() {
         if (players.isEmpty()) return;
 
-        // Randomly choose to add, delete, or update a player
-        int action = random.nextInt(100); // 0-99
+        int action = random.nextInt(100);
 
-        if (action < 10) { // 10% chance to add a new player
+        if (action < 10) {
             int score = 100 + random.nextInt(900);
             Player newPlayer = new Player("Player-" + UUID.randomUUID().toString().substring(0, 5), score);
             players.add(newPlayer);
             leaderboard.insert(newPlayer.score, newPlayer);
-        } else if (action < 20 && !players.isEmpty()) { // 10% chance to delete a player
+        } else if (action < 20 && !players.isEmpty()) {
             Player playerToDelete = players.remove(random.nextInt(players.size()));
             leaderboard.delete(playerToDelete.score);
-        } else if (!players.isEmpty()) { // 80% chance to update an existing player
+        } else if (!players.isEmpty()) {
             Player playerToUpdate = players.get(random.nextInt(players.size()));
 
-            // Delete old score
             leaderboard.delete(playerToUpdate.score);
 
-            // Update score
-            int scoreChange = random.nextInt(101) - 50; // -50 to +50
+            int scoreChange = random.nextInt(101) - 50;
             playerToUpdate.score = Math.max(0, playerToUpdate.score + scoreChange);
 
-            // Insert with new score
+
             leaderboard.insert(playerToUpdate.score, playerToUpdate);
         }
     }
 
     public List<Player> getTopPlayers(int n) {
         List<Player> allPlayers = new ArrayList<>();
-        // Traverse the bottom-most level (level 0)
         SkipListNode<Integer, Player> current = leaderboard.head;
-        while(current.down != null) { // Go to the very bottom level
+        while(current.down != null) {
             current = current.down;
         }
-        current = current.forward; // Start from the first actual data node
+        current = current.forward;
 
         while (current != null) {
             allPlayers.add(current.value);
@@ -75,18 +70,18 @@ public class SkipListService {
 
     public void performSearch(Integer key) {
         if (key == null) {
-            this.lastSearchPath = null; // Clear search path if key is null
+            this.lastSearchPath = null;
             return;
         }
         List<SkipListNode<Integer, Player>> pathNodes = new ArrayList<>();
-        leaderboard.search(key, pathNodes); // search method now populates pathNodes
+        leaderboard.search(key, pathNodes);
 
         List<Map<String, Object>> pathLinks = new ArrayList<>();
         for (int i = 0; i < pathNodes.size() - 1; i++) {
             pathLinks.add(Map.of(
                     "source", pathNodes.get(i).key == null ? "null" : pathNodes.get(i).key,
                     "target", pathNodes.get(i + 1).key,
-                    "level", pathNodes.get(i).level // Include level for visualization
+                    "level", pathNodes.get(i).level
             ));
         }
         this.lastSearchPath = new VisualizationData.Path(key, pathLinks);
@@ -95,16 +90,14 @@ public class SkipListService {
     public VisualizationData getVisualizationData() {
         List<VisualizationData.Node> nodes = new ArrayList<>();
         List<VisualizationData.Link> links = new ArrayList<>();
-        Map<Object, Integer> nodeMaxLevelMap = new HashMap<>(); // Key -> highest level it appears on
+        Map<Object, Integer> nodeMaxLevelMap = new HashMap<>();
 
-        // Populate nodeMaxLevelMap and links by traversing all levels
         SkipListNode<Integer, Player> currentLevelHead = leaderboard.head;
-        for (int i = leaderboard.head.level; i >= 0; i--) { // Traverse from top-most head down
+        for (int i = leaderboard.head.level; i >= 0; i--) {
             SkipListNode<Integer, Player> current = currentLevelHead;
             while(current != null) {
                 Object key = current.key == null ? "null" : current.key;
 
-                // Track the highest level this node appears on
                 nodeMaxLevelMap.putIfAbsent(key, i);
 
                 if (current.forward != null) {
@@ -113,18 +106,16 @@ public class SkipListService {
                 current = current.forward;
             }
             currentLevelHead = currentLevelHead.down;
-            if (currentLevelHead == null) break; // Reached bottom of head tower
+            if (currentLevelHead == null) break;
         }
 
-        // Create nodes for visualization based on collected info
         for (Map.Entry<Object, Integer> entry : nodeMaxLevelMap.entrySet()) {
             nodes.add(new VisualizationData.Node(entry.getKey(), entry.getValue()));
         }
 
-        // Sort nodes by key for consistent horizontal positioning
         nodes.sort(Comparator.comparing(node -> {
             if (node.id().equals("null")) {
-                return Integer.MIN_VALUE; // Head always first
+                return Integer.MIN_VALUE;
             }
             return (Integer) node.id();
         }));

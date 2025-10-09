@@ -17,7 +17,7 @@ public class SkipListController {
 
     @GetMapping("/leaderboard")
     public List<Player> getLeaderboard() {
-        return skipListService.getTopPlayers(10);
+        return skipListService.getTopPlayers(85);
     }
 
     @GetMapping("/visualization")
