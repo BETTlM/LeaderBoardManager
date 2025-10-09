@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skip List Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --primary-color: #2a2a2a;
+            --secondary-color: #3a3a3a;
+            --font-color: #e0e0e0;
+            --accent-color: #00aaff;
+            --highlight-color: #ff4757;
+            --font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--font-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--primary-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            margin-top: 0;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--secondary-color);
+            padding-bottom: 15px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--secondary-color);
+            border: 1px solid #444;
+            color: var(--font-color);
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        #search-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        #search-button {
+            padding: 10px 15px;
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        #search-button:hover:not(:disabled) {
+            background-color: #0088cc;
+        }
+
+        #search-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .leaderboard {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .leaderboard h3 {
+            font-weight: 300;
+            text-align: center;
+            margin-top: 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--secondary-color);
+        }
+
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .leaderboard-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .leaderboard-item .name { font-weight: bold; }
+        .leaderboard-item .score { color: var(--accent-color); }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Controls</h2>
+    <div class="search-container">
+        <input type="number" id="search-input" placeholder="Search score...">
+        <button id="search-button">Go</button>
+    </div>
+    <div class="leaderboard">
+        <h3>🏆 Leaderboard</h3>
+        <ul class="leaderboard-list" id="leaderboard-list"></ul>
+    </div>
+</div>
+
+<div class="main-content">
+    <svg id="visualization"></svg>
+</div>
+
+<script>
+    const svg = d3.select("#visualization");
+    const g = svg.append("g");
+    const zoom = d3.zoom().on("zoom", (event) => g.attr("transform", event.transform));
+    svg.call(zoom);
+
+    let lastSearchedKey = null;
+
+    const searchInput = document.getElementById('search-input');
+    const searchButton = document.getElementById('search-button');
+    const leaderboardList = document.getElementById('leaderboard-list');
+
+    async function searchForKey() {
+        const key = searchInput.value;
+        if (!key) return;
+
+        lastSearchedKey = key;
+        searchButton.disabled = true;
+
+        await fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: parseInt(key) })
+        });
+
+        // Immediately fetch to start the animation
+        await fetchAndDraw();
+
+        setTimeout(() => {
+            searchButton.disabled = false;
+        }, 2000); // Cooldown to prevent spamming
+    }
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') searchForKey();
+    });
+    searchButton.addEventListener('click', searchForKey);
+
+    async function updateLeaderboard() {
+        try {
+            const response = await fetch('/api/leaderboard');
+            const players = await response.json();
+
+            leaderboardList.innerHTML = '';
+            players.forEach(player => {
+                const item = document.createElement('li');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `<span class="name">${player.name}</span><span class="score">${player.score}</span>`;
+                item.onclick = () => {
+                    searchInput.value = player.score;
+                    searchForKey();
+                };
+                leaderboardList.appendChild(item);
+            });
+        } catch (error) { console.error("Leaderboard Error:", error); }
+    }
+
+    function drawVisualization(data) {
+        if (!data || !data.structure || !data.structure.nodes) {
+            g.selectAll("*").remove(); // Clear SVG if no data
+            return;
+        }
+
+        const { nodes, links, maxLevel } = data.structure;
+        const pathData = data.path;
+        const width = svg.node().getBoundingClientRect().width;
+        const height = svg.node().getBoundingClientRect().height;
+
+        // Define overall dimensions and spacing
+        const nodeRadius = 15;
+        const effectiveMaxLevel = maxLevel + 1; // Include level 0
+        const verticalPadding = 50; // Padding at top/bottom
+        const horizontalPadding = 80; // Padding at left/right
+
+        const requiredWidth = nodes.length * (nodeRadius * 2 + 50); // Minimum spacing
+        const calculatedNodeSpacing = Math.max(80, (width - horizontalPadding * 2) / Math.max(1, nodes.length - 1));
+
+        const calculatedLevelHeight = Math.min(100, (height - verticalPadding * 2) / Math.max(1, effectiveMaxLevel));
+
+        // Position nodes based on their sorted index
+        const nodePositions = new Map();
+        nodes.forEach((node, i) => {
+            nodePositions.set(node.id, {
+                x: horizontalPadding + i * calculatedNodeSpacing,
+                y: verticalPadding + (maxLevel - node.level) * calculatedLevelHeight
+            });
+        });
+
+        // Re-map links to include actual coordinates for path drawing
+        const mappedLinks = links.map(link => {
+            const sourcePos = nodePositions.get(link.source);
+            const targetPos = nodePositions.get(link.target);
+            // The Y for the link is the Y of the level it lives on
+            const linkY = verticalPadding + (maxLevel - link.level) * calculatedLevelHeight;
+            return {
+                source: link.source,
+                target: link.target,
+                level: link.level,
+                x1: sourcePos ? sourcePos.x : 0,
+                y1: sourcePos ? linkY : 0,
+                x2: targetPos ? targetPos.x : 0,
+                y2: targetPos ? linkY : 0
+            };
+        }).filter(link => link.x1 !== 0 && link.x2 !== 0); // Filter out links with invalid positions
+
+        const pathLinkKeys = new Set();
+        if (pathData && pathData.path) {
+            pathData.path.forEach(p => {
+                pathLinkKeys.add(`${p.source}->${p.target}->${p.level}`);
+            });
+        }
+
+        // --- Draw Links ---
+        const linkSelection = g.selectAll(".link")
+            .data(mappedLinks, d => `${d.source}-${d.target}-${d.level}`);
+
+        linkSelection.enter().append("path")
+            .attr("class", "link")
+            .attr("fill", "none")
+            .attr("stroke", d => pathLinkKeys.has(`${d.source}->${d.target}->${d.level}`) ? "white" : "var(--accent-color)")
+            .attr("stroke-width", d => pathLinkKeys.has(`${d.source}->${d.target}->${d.level}`) ? 3 : 1.5)
+            .attr("d", d => `M${d.x1},${d.y1} L${d.x2},${d.y2}`);
+
+        linkSelection.exit().remove();
+
+        linkSelection.transition().duration(500)
+            .attr("d", d => `M${d.x1},${d.y1} L${d.x2},${d.y2}`)
+            .attr("stroke", d => pathLinkKeys.has(`${d.source}->${d.target}->${d.level}`) ? "white" : "var(--accent-color)")
+            .attr("stroke-width", d => pathLinkKeys.has(`${d.source}->${d.target}->${d.level}`) ? 3 : 1.5);
+
+        // --- Animate Search Path ---
+        if (pathData && pathData.path && pathData.path.length > 0) {
+            const animatePathLinks = mappedLinks.filter(d => pathLinkKeys.has(`${d.source}->${d.target}->${d.level}`));
+
+            animatePathLinks.forEach((d, i) => {
+                g.select(`.link[data-source="${d.source}"][data-target="${d.target}"][data-level="${d.level}"]`)
+                    .attr("stroke", "white") // Initial highlight
+                    .transition()
+                    .delay(i * 250) // Animate link by link
+                    .duration(250)
+                    .attr("stroke", "var(--highlight-color)");
+            });
+        }
+
+
+        // --- Draw Nodes ---
+        const nodeSelection = g.selectAll(".node")
+            .data(nodes, d => d.id);
+
+        const nodeEnter = nodeSelection.enter().append("g")
+            .attr("class", "node")
+            .attr("transform", d => `translate(${nodePositions.get(d.id).x}, ${nodePositions.get(d.id).y})`);
+
+        // Vertical lines for node towers
+        nodeEnter.append("line")
+            .attr("stroke", "var(--secondary-color)")
+            .attr("stroke-width", 2)
+            .attr("x1", 0).attr("y1", 0) // Start at the node's position
+            .attr("x2", 0).attr("y2", d => (maxLevel - d.level) * calculatedLevelHeight); // Extend to level 0 Y
+
+        // Circles for each level this node appears on
+        nodeEnter.selectAll("circle")
+            .data(d => Array.from({length: d.level + 1}, (_, i) => ({ id: d.id, level: d.level - i, parentMaxLevel: d.level })))
+            .enter().append("circle")
+            .attr("cy", d => (d.parentMaxLevel - d.level) * calculatedLevelHeight)
+            .attr("r", nodeRadius)
+            .attr("stroke", "var(--accent-color)")
+            .attr("stroke-width", 2)
+            .attr("fill", function(d) {
+                const isSearchTarget = String(d.id) === lastSearchedKey;
+                const isPartOfSearchPath = pathData && pathData.path &&
+                    pathData.path.some(p => String(p.source) === String(d.id) || String(p.target) === String(d.id));
+                return isSearchTarget ? "var(--highlight-color)" : (isPartOfSearchPath ? "var(--accent-color)" : "var(--primary-color)");
+            });
+
+        // Text for the node ID
+        nodeEnter.append("text")
+            .attr("y", d => (maxLevel - d.level) * calculatedLevelHeight + nodeRadius * 2) // Position text below the lowest circle
+            .attr("text-anchor", "middle")
+            .attr("fill", "var(--font-color)")
+            .attr("font-weight", "bold")
+            .text(d => d.id === "null" ? "H" : d.id);
+
+        // Update existing nodes
+        const allNodes = nodeEnter.merge(nodeSelection);
+        allNodes.transition().duration(500)
+            .attr("transform", d => `translate(${nodePositions.get(d.id).x}, ${nodePositions.get(d.id).y})`);
+
+        allNodes.select("line").transition().duration(500)
+            .attr("y1", 0).attr("y2", d => (maxLevel - d.level) * calculatedLevelHeight); // Corrected y2 relative to node's group
+
+        allNodes.selectAll("circle").data(d => Array.from({length: d.level + 1}, (_, i) => ({ id: d.id, level: d.level - i, parentMaxLevel: d.level })))
+            .join("circle")
+            .transition().duration(500)
+            .attr("cy", d => (d.parentMaxLevel - d.level) * calculatedLevelHeight)
+            .attr("r", nodeRadius)
+            .attr("stroke", "var(--accent-color)")
+            .attr("stroke-width", 2)
+            .attr("fill", function(d) {
+                const isSearchTarget = String(d.id) === lastSearchedKey;
+                const isPartOfSearchPath = pathData && pathData.path &&
+                    pathData.path.some(p => String(p.source) === String(d.id) || String(p.target) === String(d.id));
+                return isSearchTarget ? "var(--highlight-color)" : (isPartOfSearchPath ? "var(--accent-color)" : "var(--primary-color)");
+            });
+
+        allNodes.select("text").transition().duration(500)
+            .attr("y", d => (maxLevel - d.level) * calculatedLevelHeight + nodeRadius * 2)
+            .text(d => d.id === "null" ? "H" : d.id);
+
+        nodeSelection.exit().remove(); // Remove old nodes
+
+        // 4. Set initial view to frame the entire Skip List
+        const minX = d3.min(nodes, d => nodePositions.get(d.id).x - nodeRadius);
+        const maxX = d3.max(nodes, d => nodePositions.get(d.id).x + nodeRadius);
+        const minY = d3.min(nodes, d => nodePositions.get(d.id).y - nodeRadius);
+        const maxY = d3.max(nodes, d => nodePositions.get(d.id).y + (maxLevel - d.level) * calculatedLevelHeight + nodeRadius * 2);
+
+
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+
+        if (contentWidth > 0 && contentHeight > 0) {
+            const scaleX = width / (contentWidth + horizontalPadding * 2);
+            const scaleY = height / (contentHeight + verticalPadding * 2);
+            const scale = Math.min(scaleX, scaleY);
+
+            const translateX = (width - contentWidth * scale) / 2 - minX * scale;
+            const translateY = (height - contentHeight * scale) / 2 - minY * scale;
+
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+            );
+        } else {
+            // If no nodes, reset zoom
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+        }
+    }
+
+    async function fetchAndDraw() {
+        try {
+            const response = await fetch('/api/visualization');
+            if(!response.ok) throw new Error("Network response was not ok");
+            const data = await response.json();
+            if(data && data.structure) {
+                drawVisualization(data);
+            }
+        } catch (error) { console.error("Visualization Error:", error); }
+    }
+
+    setInterval(fetchAndDraw, 5000);
+    setInterval(updateLeaderboard, 5000);
+    fetchAndDraw();
+    updateLeaderboard();
+</script>
+</body>
+</html>
