@@ -1,5 +1,7 @@
 # Skip List Leaderboard: A Data Structure Case Study
 
+![Skip List Visualization Demo](./assets/visualization.gif)
+
 This project is a **Spring Boot + D3.js application** that provides a real-time, interactive visualization of a **Skip List** data structure. It serves as a practical case study to demonstrate the performance and behavior of skip lists in a dynamic, high-write environment.
 
 The application simulates a live leaderboard where player scores are constantly being added, updated, and removed. A single-page front-end consumes data from the backend API to render the skip list's internal state, allowing users to observe its structure as it changes. This makes it an effective educational tool for understanding this advanced data structure.
@@ -31,41 +33,41 @@ The application simulates a live leaderboard where player scores are constantly 
 
 ### Instructions
 
-1. **Clone the repository:**
+1.  **Clone the repository:**
 
-   ```bash
-   git clone https://github.com/BETTlM/LeaderBoardManager.git
-   ```
+    ```bash
+    git clone [https://github.com/BETTlM/LeaderBoardManager.git](https://github.com/BETTlM/LeaderBoardManager.git)
+    ```
 
-2. **Navigate to the project directory:**
+2.  **Navigate to the project directory:**
 
-   ```bash
-   cd LeaderBoardManager
-   ```
+    ```bash
+    cd LeaderBoardManager
+    ```
 
-3. **Build the project:**
-   Compiles the application and downloads dependencies.
+3.  **Build the project:**
+    Compiles the application and downloads dependencies.
 
-   * On macOS & Linux:
+    * On macOS & Linux:
 
-     ```bash
-     ./mvnw clean install
-     ```
+        ```bash
+        ./mvnw clean install
+        ```
 
-   * On Windows:
+    * On Windows:
 
-     ```bash
-     mvnw.cmd clean install
-     ```
+        ```bash
+        mvnw.cmd clean install
+        ```
 
-4. **Run the application:**
+4.  **Run the application:**
 
-   ```bash
-   mvn spring-boot:run
-   ```
+    ```bash
+    mvn spring-boot:run
+    ```
 
-5. **View the application:**
-   Open your browser at [http://localhost:8080](http://localhost:8080)
+5.  **View the application:**
+    Open your browser at [http://localhost:8080](http://localhost:8080)
 
 ---
 
